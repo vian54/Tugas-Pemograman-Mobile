@@ -33,16 +33,9 @@ class CalculatorProvider extends ChangeNotifier {
   double _firstNum = 0;
   String _operator = '';
   bool _shouldResetDisplay = false;
-  bool _isScientific = true;
 
   String get display => _display;
   String get equation => _equation;
-  bool get isScientific => _isScientific;
-
-  void toggleMode() {
-    _isScientific = !_isScientific;
-    notifyListeners();
-  }
 
   void inputNumber(String num) {
     if (_shouldResetDisplay) {
@@ -198,8 +191,57 @@ class CalculatorProvider extends ChangeNotifier {
   }
 }
 
-class CalculatorScreen extends StatelessWidget {
+class CalculatorScreen extends StatefulWidget {
   const CalculatorScreen({Key? key}) : super(key: key);
+
+  @override
+  State<CalculatorScreen> createState() => _CalculatorScreenState();
+}
+
+class _CalculatorScreenState extends State<CalculatorScreen>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _animController;
+  late Animation<double> _pulseAnimation;
+  bool _isMenuOpen = false;
+  String _lastPressedButton = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _animController = AnimationController(
+      duration: const Duration(milliseconds: 1500),
+      vsync: this,
+    )..repeat(reverse: true);
+    
+    _pulseAnimation = Tween<double>(begin: 0.95, end: 1.05).animate(
+      CurvedAnimation(parent: _animController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _animController.dispose();
+    super.dispose();
+  }
+
+  void _toggleMenu() {
+    setState(() {
+      _isMenuOpen = !_isMenuOpen;
+    });
+  }
+
+  void _onButtonPressed(String button) {
+    setState(() {
+      _lastPressedButton = button;
+    });
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (mounted) {
+        setState(() {
+          _lastPressedButton = '';
+        });
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -223,23 +265,34 @@ class CalculatorScreen extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              color: const Color(0xFF333333),
-              shape: BoxShape.circle,
+          GestureDetector(
+            onTap: _toggleMenu,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: _isMenuOpen ? const Color(0xFF505050) : const Color(0xFF333333),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                _isMenuOpen ? Icons.close : Icons.list,
+                color: Colors.white,
+                size: 24,
+              ),
             ),
-            child: Icon(Icons.list, color: Colors.white, size: 24),
           ),
-          Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              color: const Color(0xFF333333),
-              shape: BoxShape.circle,
+          ScaleTransition(
+            scale: _pulseAnimation,
+            child: Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: const Color(0xFF333333),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.calculate_outlined, color: Colors.white, size: 24),
             ),
-            child: Icon(Icons.calculate_outlined, color: Colors.white, size: 24),
           ),
         ],
       ),
@@ -251,128 +304,35 @@ class CalculatorScreen extends StatelessWidget {
       builder: (context, calc, child) {
         return Container(
           padding: const EdgeInsets.all(32),
-          alignment: Alignment.bottomRight,
-          child: Text(
-            calc.display,
-            style: const TextStyle(
-              fontSize: 80,
-              fontWeight: FontWeight.w300,
-              color: Colors.white,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildButtons() {
-    return Consumer<CalculatorProvider>(
-      builder: (context, calc, child) {
-        return Container(
-          padding: const EdgeInsets.all(12),
           child: Column(
+            mainAxisAlignment: MainAxisAlignment.end,
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              // Row 1: Scientific functions
-              Row(
-                children: [
-                  _buildButton(context, '(', type: ButtonType.dark),
-                  _buildButton(context, ')', type: ButtonType.dark),
-                  _buildButton(context, 'mc', type: ButtonType.dark),
-                  _buildButton(context, 'm+', type: ButtonType.dark),
-                  _buildButton(context, 'm-', type: ButtonType.dark),
-                  _buildButton(context, 'mr', type: ButtonType.dark),
-                ],
+              AnimatedOpacity(
+                duration: const Duration(milliseconds: 300),
+                opacity: calc.equation.isEmpty ? 0.0 : 0.7,
+                child: Text(
+                  calc.equation,
+                  style: const TextStyle(
+                    fontSize: 24,
+                    color: Color(0xFF00F0FF),
+                    fontWeight: FontWeight.w300,
+                    letterSpacing: 2,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-              // Row 2
-              Row(
-                children: [
-                  _buildButton(context, '2ⁿᵈ', type: ButtonType.dark),
-                  _buildButton(context, 'x²', type: ButtonType.dark),
-                  _buildButton(context, 'x³', type: ButtonType.dark),
-                  _buildButton(context, 'xʸ', type: ButtonType.dark),
-                  _buildButton(context, 'eˣ', type: ButtonType.dark),
-                  _buildButton(context, '10ˣ', type: ButtonType.dark),
-                ],
-              ),
-              // Row 3
-              Row(
-                children: [
-                  _buildButton(context, '1/x', type: ButtonType.dark),
-                  _buildButton(context, '√', type: ButtonType.dark),
-                  _buildButton(context, '∛', type: ButtonType.dark),
-                  _buildButton(context, 'ʸ√x', type: ButtonType.dark),
-                  _buildButton(context, 'ln', type: ButtonType.dark),
-                  _buildButton(context, 'log', type: ButtonType.dark),
-                ],
-              ),
-              // Row 4
-              Row(
-                children: [
-                  _buildButton(context, 'x!', type: ButtonType.dark),
-                  _buildButton(context, 'sin', type: ButtonType.dark),
-                  _buildButton(context, 'cos', type: ButtonType.dark),
-                  _buildButton(context, 'tan', type: ButtonType.dark),
-                  _buildButton(context, 'e', type: ButtonType.dark),
-                  _buildButton(context, 'EE', type: ButtonType.dark),
-                ],
-              ),
-              // Row 5
-              Row(
-                children: [
-                  _buildButton(context, 'Rand', type: ButtonType.dark),
-                  _buildButton(context, 'sinh', type: ButtonType.dark),
-                  _buildButton(context, 'cosh', type: ButtonType.dark),
-                  _buildButton(context, 'tanh', type: ButtonType.dark),
-                  _buildButton(context, 'π', type: ButtonType.dark),
-                  _buildButton(context, 'Rad', type: ButtonType.dark),
-                ],
-              ),
-              // Row 6
-              Row(
-                children: [
-                  _buildButton(context, '⌫', type: ButtonType.light, flex: 2),
-                  _buildButton(context, 'C', type: ButtonType.light),
-                  _buildButton(context, '%', type: ButtonType.light),
-                  _buildButton(context, '÷', type: ButtonType.orange),
-                ],
-              ),
-              // Row 7
-              Row(
-                children: [
-                  _buildButton(context, '7', type: ButtonType.number),
-                  _buildButton(context, '8', type: ButtonType.number),
-                  _buildButton(context, '9', type: ButtonType.number),
-                  _buildButton(context, '×', type: ButtonType.orange),
-                ],
-              ),
-              // Row 8
-              Row(
-                children: [
-                  _buildButton(context, '4', type: ButtonType.number),
-                  _buildButton(context, '5', type: ButtonType.number),
-                  _buildButton(context, '6', type: ButtonType.number),
-                  _buildButton(context, '-', type: ButtonType.orange),
-                ],
-              ),
-              // Row 9
-              Row(
-                children: [
-                  _buildButton(context, '1', type: ButtonType.number),
-                  _buildButton(context, '2', type: ButtonType.number),
-                  _buildButton(context, '3', type: ButtonType.number),
-                  _buildButton(context, '+', type: ButtonType.orange),
-                ],
-              ),
-              // Row 10
-              Row(
-                children: [
-                  _buildButton(context, '+/-', type: ButtonType.number),
-                  _buildButton(context, '0', type: ButtonType.number),
-                  _buildButton(context, '.', type: ButtonType.number),
-                  _buildButton(context, '=', type: ButtonType.orange),
-                ],
+              const SizedBox(height: 16),
+              Text(
+                calc.display,
+                style: const TextStyle(
+                  fontSize: 64,
+                  fontWeight: FontWeight.w300,
+                  color: Colors.white,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),
@@ -381,47 +341,156 @@ class CalculatorScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildButton(
-    BuildContext context,
-    String text, {
-    required ButtonType type,
-    int flex = 1,
-  }) {
+  Widget _buildButtons() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: Column(
+        children: [
+          // Row 1 - 6 buttons
+          _buildButtonRow([
+            ('(', ButtonType.dark, 1),
+            (')', ButtonType.dark, 1),
+            ('mc', ButtonType.dark, 1),
+            ('m+', ButtonType.dark, 1),
+            ('m-', ButtonType.dark, 1),
+            ('mr', ButtonType.dark, 1),
+          ], smallButton: true),
+          // Row 2
+          _buildButtonRow([
+            ('2ⁿᵈ', ButtonType.dark, 1),
+            ('x²', ButtonType.dark, 1),
+            ('x³', ButtonType.dark, 1),
+            ('xʸ', ButtonType.dark, 1),
+            ('eˣ', ButtonType.dark, 1),
+            ('10ˣ', ButtonType.dark, 1),
+          ], smallButton: true),
+          // Row 3
+          _buildButtonRow([
+            ('1/x', ButtonType.dark, 1),
+            ('√', ButtonType.dark, 1),
+            ('∛', ButtonType.dark, 1),
+            ('ʸ√x', ButtonType.dark, 1),
+            ('ln', ButtonType.dark, 1),
+            ('log', ButtonType.dark, 1),
+          ], smallButton: true),
+          // Row 4
+          _buildButtonRow([
+            ('x!', ButtonType.dark, 1),
+            ('sin', ButtonType.dark, 1),
+            ('cos', ButtonType.dark, 1),
+            ('tan', ButtonType.dark, 1),
+            ('e', ButtonType.dark, 1),
+            ('EE', ButtonType.dark, 1),
+          ], smallButton: true),
+          // Row 5
+          _buildButtonRow([
+            ('Rand', ButtonType.dark, 1),
+            ('sinh', ButtonType.dark, 1),
+            ('cosh', ButtonType.dark, 1),
+            ('tanh', ButtonType.dark, 1),
+            ('π', ButtonType.dark, 1),
+            ('Rad', ButtonType.dark, 1),
+          ], smallButton: true),
+          // Row 6 - Special row dengan backspace lebar
+          SizedBox(
+            height: 52,
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: _buildSingleButton('⌫', ButtonType.light),
+                ),
+                Expanded(child: _buildSingleButton('C', ButtonType.light)),
+                Expanded(child: _buildSingleButton('%', ButtonType.light)),
+                Expanded(child: _buildSingleButton('÷', ButtonType.orange)),
+              ],
+            ),
+          ),
+          // Row 7-10 - 4 buttons each
+          _buildButtonRow([
+            ('7', ButtonType.number, 1),
+            ('8', ButtonType.number, 1),
+            ('9', ButtonType.number, 1),
+            ('×', ButtonType.orange, 1),
+          ]),
+          _buildButtonRow([
+            ('4', ButtonType.number, 1),
+            ('5', ButtonType.number, 1),
+            ('6', ButtonType.number, 1),
+            ('-', ButtonType.orange, 1),
+          ]),
+          _buildButtonRow([
+            ('1', ButtonType.number, 1),
+            ('2', ButtonType.number, 1),
+            ('3', ButtonType.number, 1),
+            ('+', ButtonType.orange, 1),
+          ]),
+          _buildButtonRow([
+            ('+/-', ButtonType.number, 1),
+            ('0', ButtonType.number, 1),
+            ('.', ButtonType.number, 1),
+            ('=', ButtonType.orange, 1),
+          ]),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildButtonRow(List<(String, ButtonType, int)> buttons, {bool smallButton = false}) {
+    return SizedBox(
+      height: smallButton ? 42 : 52,
+      child: Row(
+        children: buttons.map((btn) {
+          return Expanded(
+            flex: btn.$3,
+            child: _buildSingleButton(btn.$1, btn.$2, smallButton: smallButton),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildSingleButton(String text, ButtonType type, {bool smallButton = false}) {
     Color bgColor;
     Color textColor = Colors.white;
-    double fontSize = 22;
+    double fontSize = smallButton ? 16 : 26;
 
     switch (type) {
       case ButtonType.orange:
         bgColor = const Color(0xFFFF9500);
-        fontSize = 32;
+        fontSize = smallButton ? 24 : 32;
         break;
       case ButtonType.light:
         bgColor = const Color(0xFFA6A6A6);
         textColor = Colors.black;
-        fontSize = 28;
+        fontSize = smallButton ? 20 : 26;
         break;
       case ButtonType.dark:
         bgColor = const Color(0xFF333333);
-        fontSize = 18;
+        fontSize = smallButton ? 16 : 20;
         break;
       case ButtonType.number:
         bgColor = const Color(0xFF505050);
-        fontSize = 32;
+        fontSize = smallButton ? 24 : 32;
         break;
     }
 
-    return Expanded(
-      flex: flex,
-      child: Container(
-        margin: const EdgeInsets.all(4),
-        height: 50,
+    final isPressed = _lastPressedButton == text;
+
+    return Container(
+      margin: EdgeInsets.all(smallButton ? 2 : 3),
+      child: AnimatedScale(
+        scale: isPressed ? 0.92 : 1.0,
+        duration: const Duration(milliseconds: 100),
         child: Material(
           color: bgColor,
-          borderRadius: BorderRadius.circular(25),
+          borderRadius: BorderRadius.circular(smallButton ? 18 : 22),
           child: InkWell(
-            onTap: () => _handleButtonPress(context, text),
-            borderRadius: BorderRadius.circular(25),
+            onTap: () {
+              _onButtonPressed(text);
+              _handleButtonPress(text);
+            },
+            borderRadius: BorderRadius.circular(smallButton ? 18 : 22),
             child: Center(
               child: Text(
                 text,
@@ -440,7 +509,7 @@ class CalculatorScreen extends StatelessWidget {
     );
   }
 
-  void _handleButtonPress(BuildContext context, String text) {
+  void _handleButtonPress(String text) {
     final calc = Provider.of<CalculatorProvider>(context, listen: false);
 
     if (text == 'C') {
